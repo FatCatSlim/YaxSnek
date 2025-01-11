@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel to Accordion</title>
+  <!--google fonts-->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+    rel="stylesheet">
+  <!-- bootstrap css -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- custom css -->
+  <link href="css/styles.css" rel="stylesheet">
+  <!-- jquery and xlsx -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+  <!-- main container -->
+  <div class="main-container">
+    <header>
+      <img src="images/header.png" alt="Header Image">
+    </header>
+
+    <div class="container mt-4">
+      <h1></h1>
+      <!-- <input type="file" id="file-input" accept=".xlsx, .xls" /> -->
+
+      <!-- filters/inputs -->
+      <div class="filter-container">
+
+        <input class="form-control form-control-sm" list="datalistOptions" id="exampleDataList"
+          placeholder="Search by name...">
+        <datalist id="datalistOptions"></datalist>
+
+        <select class="form-select form-select-sm country-select" aria-label=".form-select-sm example">
+          <option selected>Filter by Country</option>
+        </select>
+
+        <!-- color dropdowns -->
+        <div class="color-select-container">
+          <select id="color1" class="form-select form-select-sm" aria-label="First Color Filter">
+            <option selected>Filter by Color 1</option>
+          </select>
+          <select id="color2" class="form-select form-select-sm" aria-label="Second Color Filter">
+            <option selected>Filter by Color 2</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- reset -->
+      <div class="reset-container">
+        <button class="btn btn-secondary btn-sm" id="reset-button">Reset</button>
+      </div>
+
+      <div class="accordion accordion-flush mt-4" id="accordionFlushExample">
+        <!-- accordion items will be displayed here -->
+      </div>
+    </div>
+    <footer>
+      <img src="images/footer.png" alt="Footer Image">
+    </footer>
+  </div><!-- main-container(end) -->
+
+  <script src="script/get-values.js"></script>
+  <script src="script/gen-detalist.js"></script>
+  <script src="script/filters-by.js"></script>
+  <script src="script/set-colors.js"></script>
+
+  <!-- main script -->
+  <script>
+    $(document).ready(function () { //when document is ready the fun begins
+
+      /* ###### Load data from JSON ###### */
+      let snakesData = {}; //data storage
+      // let uniqueColors = [];
+
+      $.getJSON('11snakes.json', function (jsonData) {//load JSON
+        processExcelData(jsonData); //call func to process JSON data
+
+
+      }).fail(function () {
+        console.error('Failed to load JSON file.');//
+      });
+
+
+      /* ###### Process excel data ###### */
+      function processExcelData(data) {
+        //columns to exclude
+        const excludedColumns = ["species#", "ImageFileName", "ImageType", "ScaleType", "Nape", "Pattern", "VentralColor", "VentralPattern", "HeadColorDistinct", "Caption"];
+        snakesData = {}; //reset data (in case of previous data)
+
+        data.forEach(row => { //loop through rows
+          //if species exists, convert to string and trim, else return empty string
+          let species = row["Species"] ? row["Species"].toString().trim() : "";
+          //skip if species is empty or null ("null")
+          if (!species || species.toLowerCase() === "null") return;
+          //if species not in snakesData, add it
+          snakesData[species] = snakesData[species] || {};
+
+          //skip if color is empty or null ("null")
+          if (!row["Color"] || row["Color"].toLowerCase() === "null") return;
+
+          // variable to storr additional information
+          let additionalInfo = "";
+          //check if additional info exists and not "null" before adding to additionalInfo
+          if (row["Caption"] && row["Caption"].toLowerCase() !== "null") {
+            additionalInfo += `<strong>Caption:</strong> ${row["Caption"]}`;
+          }
+          //check id data not null and exists... 
+          if (row["HeadColorDistinct"] && row["HeadColorDistinct"].toLowerCase() !== "null") {
+            //...add to additionalInfo (true) use | to separate (false) use empty string
+            additionalInfo += `${additionalInfo ? ' | ' : ''}<strong>HeadColor:</strong> ${row["HeadColorDistinct"]}`;
+          }
+          //same as above
+          if (row["ScaleType"] && row["ScaleType"].toLowerCase() !== "null") {
+            additionalInfo += `${additionalInfo ? ' | ' : ''}<strong>Scale:</strong> ${row["ScaleType"]}`;
+          }
+          if (row["Nape"] && row["Nape"].toLowerCase() !== "null") {
+            additionalInfo += `${additionalInfo ? ' | ' : ''}<strong>Nape:</strong> ${row["Nape"]}`;
+          }
+          if (row["Pattern"] && row["Pattern"].toLowerCase() !== "null") {
+            additionalInfo += `${additionalInfo ? ' | ' : ''}<strong>Pattern:</strong> ${row["Pattern"]}`;
+          }
+          //yep, still the same...
+          if (row["VentralColor"] && row["VentralColor"].toLowerCase() !== "null") {
+            additionalInfo += `${additionalInfo ? ' | ' : ''}<strong>VentralColor:</strong> ${row["VentralColor"]}`;
+          }
+          //and the last one...
+          if (row["VentralPattern"] && row["VentralPattern"].toLowerCase() !== "null") {
+            additionalInfo += `${additionalInfo ? ' | ' : ''}<strong>VentralPattern:</strong> ${row["VentralPattern"]}`;
+          }
+
+          //add additionalInfo to the Color column or display "No info"
+          if (additionalInfo) {
+            row["Color"] = `${row["Color"]} (<span style='font-size: 1rem;'>${additionalInfo}</span>)`;
+          }
+          else {
+            row["Color"] = `${row["Color"]} (<span style='font-size: 1rem;'>No info</span>)`;
+          }
+          /* ###### eluminate duplicates block ###### */
+          //loop through each row keys/values
+          $.each(row, function (key, value) {
+            //skip if:
+            //value null or empty
+            //column is "Species"
+            //column is in excludedColumns array
+            //value is "null"
+            if (!value || key === "Species" || excludedColumns.includes(key) || value.toLowerCase() === "null") return;
+
+            const trimmedValue = value.toString().trim();
+            const group = snakesData[species][key] = snakesData[species][key] || [];//add key to species data or create empty array
+            if (!group.includes(trimmedValue)) group.push(trimmedValue);
+          });
+        });
+
+        const uniqueCountries = getUniqueCountries(data);
+        const snakeNames = Object.keys(snakesData);
+        /* method returns an array of all the property names (keys) 
+        of the snakesData object. 
+        https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys */
+        setCountryDropdown(uniqueCountries);
+        setDatalist(snakeNames);
+        displayAccordion(snakesData);
+        filterByCountry(snakesData);
+        filterBySnakeName(snakesData);
+        addColorFilter(snakesData);
+      }
+
+      /* ###### Add Filtering by Color ###### */
+      function addColorFilter(data) {
+        $('#color1, #color2').on('change', function () {
+          const selectedColor1 = $('#color1').val()?.toLowerCase().trim();
+          const selectedColor2 = $('#color2').val()?.toLowerCase().trim();
+          /* ?.(chaining):
+          Before calling .toLowerCase(), (?.)makes sure that value is not null or
+          undefined. If val() returns null or undefined, the entire expression 
+          evaluates to undefined without throwing an error. */
+
+          const filteredData = {};
+          $.each(data, (species, details) => {
+            //Loops through the data object where each key (species) is snake species, (details) its attributes.
+            //https://api.jquery.com/jQuery.each/
+            const colors = details["Color"] ? details["Color"].toString().toLowerCase().split(',').map(color => color.trim()) : [];
+            if (
+              (!selectedColor1 || colors.includes(selectedColor1)) &&
+              (!selectedColor2 || colors.includes(selectedColor2))
+            ) {
+              filteredData[species] = details;
+            }
+          });
+
+          displayAccordion(filteredData); //updates accordion with filtered data
+        });
+      }
+
+      /* ###### Display accordion ###### */
+      function displayAccordion(data) {
+        const accordion = $('#accordionFlushExample').empty();
+        let index = 0; //item index
+        $.each(data, function (species, details) { //loop through data...
+          index++;
+          //accordion id
+          const accordionId = `flush-collapse${index}`;
+          const headerId = `flush-heading${index}`;
+          //template literal
+          const accordionItem = `
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="${headerId}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${accordionId}" aria-expanded="false" aria-controls="${accordionId}">
+                  ${species}
+                </button>
+              </h2>
+              <div id="${accordionId}" class="accordion-collapse collapse" aria-labelledby="${headerId}" data-bs-parent="#accordionFlushExample">
+                <div class="accordion-body">
+                  <div style="display: flex; justify-content: center; gap: 10px;">
+                    <div class="square">IMG_1</div>
+                    <div class="square">IMG_2</div>
+                    <div class="square">IMG_3</div>
+                  </div>
+                  ${generateDetailsList(details)}
+                </div>
+              </div>
+            </div>
+          `;
+          accordion.append(accordionItem); //add template to accordion
+        });
+      }
+    });
+  </script>
+
+  <!-- reset script -->
+  <script>
+    $(document).ready(function () {
+      $('#reset-button').on('click', function () {
+        //clear all fields
+        $('input[type="text"], input[type="search"]').val('');
+        $('datalist').empty();
+        $('select').prop('selectedIndex', 0);
+      });
+    });
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
